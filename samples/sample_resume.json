@@ -1,0 +1,100 @@
+{
+  "personal": {
+    "name": "Alex Kumar",
+    "title": "Senior Software Engineer",
+    "email": "alex.kumar@example.com",
+    "phone": "+1 (415) 555-0142",
+    "location": "San Francisco, CA",
+    "linkedin": "https://linkedin.com/in/alexkumar",
+    "github": "https://github.com/alexkumar",
+    "website": "https://alexkumar.dev"
+  },
+  "summary": "Senior Software Engineer with 7+ years of experience building scalable distributed systems and shipping ML-powered products. Combines deep backend expertise with a product mindset; proven track record of leading cross-functional teams from 0 to 1.",
+  "experience": [
+    {
+      "role": "Senior Software Engineer",
+      "company": "Lumen Labs",
+      "start": "2022",
+      "end": "Present",
+      "location": "San Francisco, CA",
+      "bullets": [
+        "Led the redesign of the core inference service, reducing p99 latency from 850ms to 180ms and saving $42K/month in compute.",
+        "Architected a multi-tenant feature-flag platform now used by 8 product teams; cut release rollback time by 75%.",
+        "Mentored 4 junior engineers; 2 promoted within a year."
+      ]
+    },
+    {
+      "role": "Software Engineer",
+      "company": "BrightPath",
+      "start": "2019",
+      "end": "2022",
+      "location": "Remote",
+      "bullets": [
+        "Built the recommendation pipeline (Python, Kafka, Redis) serving 12M users daily with 99.95% uptime.",
+        "Designed an A/B-testing framework adopted across 5 squads, accelerating experiment velocity by 3x.",
+        "Drove migration from monolith to microservices on Kubernetes, reducing deploy time from 40 min to 6 min."
+      ]
+    },
+    {
+      "role": "Backend Developer",
+      "company": "Northwind Systems",
+      "start": "2017",
+      "end": "2019",
+      "location": "Boston, MA",
+      "bullets": [
+        "Developed REST and GraphQL APIs powering the customer dashboard (1.2M MAU).",
+        "Optimized PostgreSQL query plans, cutting average response time by 38%.",
+        "Implemented OAuth2 + RBAC, passing the company's first SOC 2 Type II audit."
+      ]
+    }
+  ],
+  "education": [
+    {
+      "school": "University of Michigan",
+      "degree": "B.S.",
+      "field": "Computer Science",
+      "start": "2013",
+      "end": "2017",
+      "gpa": "3.8",
+      "details": "Dean's List 6 semesters; teaching assistant for Data Structures."
+    }
+  ],
+  "projects": [
+    {
+      "name": "Resume Radar",
+      "description": "Open-source CLI that scores a resume against a job description using TF-IDF and skill embeddings.",
+      "link": "https://github.com/alexkumar/resume-radar",
+      "tech": ["Python", "scikit-learn", "Click"],
+      "bullets": [
+        "1.2K GitHub stars; ranked #3 on Hacker News show-and-tell."
+      ]
+    },
+    {
+      "name": "OrcaQueue",
+      "description": "Lightweight Redis-backed task queue with exactly-once delivery semantics.",
+      "link": "https://github.com/alexkumar/orcaqueue",
+      "tech": ["Go", "Redis", "gRPC"],
+      "bullets": [
+        "Adopted by 3 production systems handling 200M+ jobs/month."
+      ]
+    }
+  ],
+  "skills": [
+    "Python", "Go", "TypeScript", "FastAPI", "Django", "PostgreSQL",
+    "Redis", "Kafka", "Kubernetes", "Docker", "AWS", "Terraform",
+    "GraphQL", "REST API", "Machine Learning", "MLOps", "System Design",
+    "Leadership", "Mentorship"
+  ],
+  "certifications": [
+    {"name": "AWS Solutions Architect — Associate", "issuer": "Amazon Web Services", "year": "2023"},
+    {"name": "Certified Kubernetes Administrator", "issuer": "CNCF", "year": "2022"}
+  ],
+  "languages": [
+    {"name": "English", "level": "Native"},
+    {"name": "Hindi", "level": "Native"},
+    {"name": "Spanish", "level": "Conversational"}
+  ],
+  "awards": [
+    {"name": "Lumen Labs Innovation Award", "year": "2024", "description": "For the inference latency redesign."}
+  ]
+}

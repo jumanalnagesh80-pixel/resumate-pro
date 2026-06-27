@@ -1,0 +1,1057 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ResuMate AI — Workspace</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>tailwind.config={darkMode:'class'};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+<link rel="stylesheet" href="/static/css/styles.css">
+<style>
+  body{background:var(--bg);color:var(--text);}
+  .sidebar{width:240px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;height:100vh;position:sticky;top:0;overflow-y:auto;}
+  .main-area{flex:1;overflow-y:auto;height:100vh;}
+  .section-view{padding:2rem;max-width:900px;margin:0 auto;}
+</style>
+</head>
+<body>
+<div x-data="appShell" x-init="init()" x-cloak class="flex min-h-screen">
+
+  <!-- ═══════════════════ SIDEBAR ═══════════════════ -->
+  <aside class="sidebar">
+    <!-- Logo -->
+    <div class="p-4 border-b" style="border-color:var(--border)">
+      <a href="/" class="flex items-center gap-2.5">
+        <div class="w-8 h-8 rounded-lg flex items-center justify-center"
+             style="background:linear-gradient(135deg,var(--brand-1),var(--brand-3))">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 3h-7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/>
+            <path d="M14 3v5h5"/>
+          </svg>
+        </div>
+        <span class="font-bold text-sm" style="color:var(--text)">ResuMate AI</span>
+      </a>
+    </div>
+
+    <!-- Nav -->
+    <nav class="flex-1 p-3 space-y-0.5">
+      <div :class="'nav-link'+(view==='dashboard'?' active':'')" @click="view='dashboard'">
+        <span>📁</span><span>Dashboard</span>
+      </div>
+      <template x-if="currentId">
+        <div>
+          <div class="sidebar-section-label">Editing</div>
+          <div :class="'nav-link'+(view==='editor'?' active':'')" @click="view='editor'">
+            <span>📝</span><span>Editor</span>
+            <span class="ml-auto">
+              <span class="save-dot" :class="saveState"></span>
+            </span>
+          </div>
+          <div :class="'nav-link'+(view==='ats'?' active':'')" @click="view='ats'">
+            <span>📊</span><span>ATS Score</span>
+            <template x-if="atsReport">
+              <span class="ml-auto text-xs font-bold"
+                    :class="atsReport.overall>=70?'text-green-500':atsReport.overall>=45?'text-yellow-500':'text-red-500'"
+                    x-text="Math.round(atsReport.overall)"></span>
+            </template>
+          </div>
+          <div :class="'nav-link'+(view==='match'?' active':'')" @click="view='match'">
+            <span>🎯</span><span>Job Match</span>
+          </div>
+          <div :class="'nav-link'+(view==='cover'?' active':'')" @click="view='cover'">
+            <span>✉️</span><span>Cover Letter</span>
+          </div>
+          <div :class="'nav-link'+(view==='templates'?' active':'')" @click="view='templates'">
+            <span>🎨</span><span>Templates</span>
+          </div>
+        </div>
+      </template>
+      <div class="sidebar-section-label">Tools</div>
+      <div :class="'nav-link'+(view==='chat'?' active':'')" @click="view='chat'">
+        <span>💬</span><span>AI Coach</span>
+      </div>
+      <div :class="'nav-link'+(view==='profile'?' active':'')" @click="view='profile'">
+        <span>👤</span><span>Profile</span>
+      </div>
+      <template x-if="user && user.is_admin">
+        <div>
+          <div class="sidebar-section-label">Admin</div>
+          <a href="/admin" class="nav-link" style="text-decoration:none">
+            <span>🛡️</span><span>Admin Panel</span>
+            <span class="ml-auto text-xs font-bold px-1.5 py-0.5 rounded" style="background:rgba(239,68,68,.15);color:var(--bad)">Admin</span>
+          </a>
+        </div>
+      </template>
+    </nav>
+
+    <!-- User footer -->
+    <div class="p-3 border-t" style="border-color:var(--border)">
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0"
+             :style="`background:${user?.avatar_color||'var(--brand-1)'}`"
+             x-text="(user?.name||user?.email||'?').charAt(0).toUpperCase()"></div>
+        <div class="flex-1 min-w-0">
+          <div class="text-xs font-semibold truncate" style="color:var(--text)" x-text="user?.name||user?.email"></div>
+          <div class="text-xs truncate" style="color:var(--text-muted)" x-text="user?.email"></div>
+        </div>
+        <div class="flex gap-1">
+          <button @click="toggleTheme()" class="btn-ghost px-1.5 py-1 text-xs border-0" title="Toggle theme">
+            <span x-text="theme==='dark'?'☀️':'🌙'"></span>
+          </button>
+          <button @click="logout()" class="btn-ghost px-1.5 py-1 text-xs border-0" title="Sign out">⎋</button>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ═══════════════════ MAIN ═══════════════════ -->
+  <main class="main-area" style="background:var(--bg)">
+
+    <!-- Loading -->
+    <div x-show="!ready" class="flex items-center justify-center h-full" style="min-height:100vh">
+      <div class="text-center">
+        <div class="spinner spinner-dark mx-auto" style="width:2rem;height:2rem;border-width:3px"></div>
+        <p class="mt-3 text-sm" style="color:var(--text-muted)">Loading your workspace…</p>
+      </div>
+    </div>
+
+    <!-- ─── DASHBOARD ─── -->
+    <section x-show="ready && view==='dashboard'" class="section-view">
+      <div class="flex items-center justify-between mb-6">
+        <div>
+          <h1 class="text-2xl font-bold" style="color:var(--text)">
+            <span x-text="getGreeting()"></span>, <span x-text="user?.name||'there'"></span> 👋
+          </h1>
+          <p class="text-sm mt-0.5" style="color:var(--text-muted)">Manage and build your resumes</p>
+        </div>
+        <button @click="createResume()" class="btn-brand text-sm">
+          <span>＋</span> New Resume
+        </button>
+      </div>
+
+      <!-- Stats row -->
+      <div class="grid grid-cols-3 gap-4 mb-6">
+        <div class="stat-card">
+          <div class="stat-value gradient-text" x-text="resumes.length"></div>
+          <div class="stat-label">Total Resumes</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" x-text="resumes.filter(r=>r.is_public).length" style="color:var(--brand-1)"></div>
+          <div class="stat-label">Public Shared</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" x-text="bestAts()" style="color:var(--good)"></div>
+          <div class="stat-label">Best ATS Score</div>
+        </div>
+      </div>
+
+      <!-- Resume list -->
+      <div x-show="resumes.length===0" class="card text-center py-16">
+        <div class="text-5xl mb-4">📄</div>
+        <h3 class="font-semibold text-lg mb-2" style="color:var(--text)">No resumes yet</h3>
+        <p class="text-sm mb-5" style="color:var(--text-muted)">Create your first resume and start landing interviews</p>
+        <button @click="createResume()" class="btn-brand">Create my first resume →</button>
+      </div>
+
+      <div class="grid gap-3">
+        <template x-for="r in resumes" :key="r.id">
+          <div class="card flex items-center gap-4 cursor-pointer hover:border-indigo-300 transition-colors"
+               @click="openResume(r.id)">
+            <!-- Icon -->
+            <div class="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
+                 style="background:linear-gradient(135deg,rgba(99,102,241,.15),rgba(139,92,246,.15))">
+              <span class="text-xl">📄</span>
+            </div>
+            <!-- Info -->
+            <div class="flex-1 min-w-0">
+              <div class="font-semibold truncate" style="color:var(--text)" x-text="r.title"></div>
+              <div class="text-xs mt-0.5 flex items-center gap-3" style="color:var(--text-muted)">
+                <span x-text="'Updated '+API.timeAgo(r.updated_at)"></span>
+                <span x-text="r.template"></span>
+                <span x-show="r.view_count>0" x-text="r.view_count+' views'"></span>
+              </div>
+            </div>
+            <!-- ATS badge -->
+            <div class="flex items-center gap-2 flex-shrink-0">
+              <template x-if="r.ats_score">
+                <span :class="r.ats_score>=70?'badge-good':r.ats_score>=45?'badge-warn':'badge-bad'"
+                      x-text="r.ats_score+' ATS'"></span>
+              </template>
+              <span x-show="r.is_public" class="badge-info">Public</span>
+            </div>
+            <!-- Actions -->
+            <div class="flex gap-1 flex-shrink-0" @click.stop>
+              <button @click="duplicateResume(r.id)" class="btn-ghost text-xs px-2 py-1.5" title="Duplicate">⎘</button>
+              <button @click="confirmDelete(r)" class="btn-ghost text-xs px-2 py-1.5" title="Delete"
+                      style="color:var(--bad)">🗑</button>
+            </div>
+          </div>
+        </template>
+      </div>
+    </section>
+
+    <!-- ─── EDITOR ─── -->
+    <section x-show="ready && view==='editor'" class="section-view">
+      <div class="flex items-center justify-between mb-5">
+        <div class="flex items-center gap-3">
+          <input class="field text-lg font-bold px-3 py-1.5 w-64" style="border-color:transparent;background:var(--surface-2)"
+                 x-model="resumeTitle" @input="titleChanged()" placeholder="Resume title">
+          <div class="flex items-center gap-1.5 text-xs" style="color:var(--text-muted)">
+            <span class="save-dot" :class="saveState"></span>
+            <span x-text="saveLabel"></span>
+          </div>
+        </div>
+        <div class="flex gap-2">
+          <button @click="runAts()" class="btn-ghost text-sm" :disabled="atsLoading">
+            <span x-show="!atsLoading">📊 ATS</span>
+            <span x-show="atsLoading" class="flex items-center gap-1"><span class="spinner spinner-dark"></span> Scoring…</span>
+          </button>
+          <button @click="exportPdf()" class="btn-brand text-sm" :disabled="pdfLoading">
+            <span x-show="!pdfLoading">⬇ PDF</span>
+            <span x-show="pdfLoading" class="flex items-center gap-1"><span class="spinner"></span></span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Personal info -->
+      <div class="card mb-4">
+        <h3 class="font-semibold text-sm mb-3" style="color:var(--text)">Personal Information</h3>
+        <div class="grid grid-cols-2 gap-3">
+          <div><label class="label">Full Name</label>
+            <input class="field" x-model="resume.name" @input="fieldChanged()" placeholder="Your full name"></div>
+          <div><label class="label">Email</label>
+            <input class="field" x-model="resume.email" @input="fieldChanged()" placeholder="email@example.com"></div>
+          <div><label class="label">Phone</label>
+            <input class="field" x-model="resume.phone" @input="fieldChanged()" placeholder="+91 9999999999"></div>
+          <div><label class="label">Location</label>
+            <input class="field" x-model="resume.location" @input="fieldChanged()" placeholder="City, State"></div>
+          <div><label class="label">LinkedIn</label>
+            <input class="field" x-model="resume.linkedin" @input="fieldChanged()" placeholder="linkedin.com/in/you"></div>
+          <div><label class="label">GitHub / Portfolio</label>
+            <input class="field" x-model="resume.github" @input="fieldChanged()" placeholder="github.com/you"></div>
+        </div>
+      </div>
+
+      <!-- Summary -->
+      <div class="card mb-4">
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="font-semibold text-sm" style="color:var(--text)">Professional Summary</h3>
+          <button @click="genSummary()" class="btn-ghost text-xs" :disabled="aiLoading">
+            <span x-show="!aiLoading">✨ AI Generate</span>
+            <span x-show="aiLoading" class="flex items-center gap-1"><span class="spinner spinner-dark"></span></span>
+          </button>
+        </div>
+        <textarea class="field" rows="4" x-model="resume.summary" @input="fieldChanged()"
+                  placeholder="A compelling 2–3 sentence summary of your professional profile…"></textarea>
+      </div>
+
+      <!-- Experience -->
+      <div class="card mb-4">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="font-semibold text-sm" style="color:var(--text)">Work Experience</h3>
+          <button @click="addExp()" class="btn-ghost text-xs">＋ Add Role</button>
+        </div>
+        <template x-for="(exp,i) in resume.experience" :key="i">
+          <div class="border rounded-xl p-4 mb-3" style="border-color:var(--border);background:var(--surface-2)">
+            <div class="grid grid-cols-2 gap-3 mb-3">
+              <div><label class="label">Job Title</label>
+                <input class="field" x-model="exp.title" @input="fieldChanged()" placeholder="Software Engineer"></div>
+              <div><label class="label">Company</label>
+                <input class="field" x-model="exp.company" @input="fieldChanged()" placeholder="Acme Corp"></div>
+              <div><label class="label">Start Date</label>
+                <input class="field" x-model="exp.start" @input="fieldChanged()" placeholder="Jan 2022"></div>
+              <div><label class="label">End Date</label>
+                <input class="field" x-model="exp.end" @input="fieldChanged()" placeholder="Present"></div>
+            </div>
+            <label class="label">Key Bullet Points <span style="color:var(--text-muted)">(one per line)</span></label>
+            <textarea class="field mb-2" rows="3" x-model="exp.bullets_raw"
+                      @input="exp.bullets=exp.bullets_raw.split('\n').filter(b=>b.trim());fieldChanged()"
+                      placeholder="• Led migration to microservices, reducing latency by 35%"></textarea>
+            <div class="flex justify-between items-center">
+              <button @click="enhanceBullets(i)" class="btn-ghost text-xs" :disabled="bulletLoading===i">
+                <span x-show="bulletLoading!==i">✨ Enhance bullets</span>
+                <span x-show="bulletLoading===i" class="flex items-center gap-1"><span class="spinner spinner-dark"></span> Enhancing…</span>
+              </button>
+              <button @click="removeExp(i)" class="text-xs" style="color:var(--bad);cursor:pointer;background:none;border:none">Remove</button>
+            </div>
+          </div>
+        </template>
+      </div>
+
+      <!-- Education -->
+      <div class="card mb-4">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="font-semibold text-sm" style="color:var(--text)">Education</h3>
+          <button @click="addEdu()" class="btn-ghost text-xs">＋ Add</button>
+        </div>
+        <template x-for="(edu,i) in resume.education" :key="i">
+          <div class="border rounded-xl p-4 mb-3" style="border-color:var(--border);background:var(--surface-2)">
+            <div class="grid grid-cols-2 gap-3">
+              <div><label class="label">Degree</label>
+                <input class="field" x-model="edu.degree" @input="fieldChanged()" placeholder="B.Tech Computer Science"></div>
+              <div><label class="label">Institution</label>
+                <input class="field" x-model="edu.institution" @input="fieldChanged()" placeholder="VTU, Belagavi"></div>
+              <div><label class="label">Year</label>
+                <input class="field" x-model="edu.year" @input="fieldChanged()" placeholder="2020–2024"></div>
+              <div><label class="label">CGPA / %</label>
+                <input class="field" x-model="edu.gpa" @input="fieldChanged()" placeholder="8.5 / 10"></div>
+            </div>
+            <button @click="removeEdu(i)" class="text-xs mt-2" style="color:var(--bad);cursor:pointer;background:none;border:none">Remove</button>
+          </div>
+        </template>
+      </div>
+
+      <!-- Skills -->
+      <div class="card mb-4">
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="font-semibold text-sm" style="color:var(--text)">Skills</h3>
+          <button @click="suggestSkills()" class="btn-ghost text-xs" :disabled="aiLoading">✨ Suggest</button>
+        </div>
+        <input class="field mb-2" x-model="resume.skills_raw"
+               @input="resume.skills=resume.skills_raw.split(',').map(s=>s.trim()).filter(Boolean);fieldChanged()"
+               placeholder="Python, React, SQL, Docker, Git — comma separated">
+        <div class="flex flex-wrap gap-1.5 mt-2">
+          <template x-for="skill in resume.skills" :key="skill">
+            <span class="text-xs font-medium px-2.5 py-1 rounded-full" style="background:rgba(99,102,241,.12);color:var(--brand-1)" x-text="skill"></span>
+          </template>
+        </div>
+      </div>
+
+      <!-- Projects -->
+      <div class="card mb-4">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="font-semibold text-sm" style="color:var(--text)">Projects</h3>
+          <button @click="addProject()" class="btn-ghost text-xs">＋ Add</button>
+        </div>
+        <template x-for="(proj,i) in resume.projects" :key="i">
+          <div class="border rounded-xl p-4 mb-3" style="border-color:var(--border);background:var(--surface-2)">
+            <div class="grid grid-cols-2 gap-3 mb-2">
+              <div><label class="label">Project Name</label>
+                <input class="field" x-model="proj.name" @input="fieldChanged()" placeholder="AI Resume Builder"></div>
+              <div><label class="label">Tech Stack</label>
+                <input class="field" x-model="proj.tech" @input="fieldChanged()" placeholder="React, FastAPI, SQLite"></div>
+            </div>
+            <label class="label">Description</label>
+            <textarea class="field mb-2" rows="2" x-model="proj.description" @input="fieldChanged()"
+                      placeholder="Brief description of what you built and its impact…"></textarea>
+            <div class="flex justify-between">
+              <div class="flex gap-2">
+                <div><label class="label">GitHub URL</label>
+                  <input class="field text-xs" x-model="proj.url" @input="fieldChanged()" placeholder="github.com/…"></div>
+              </div>
+              <button @click="removeProject(i)" class="text-xs self-end mb-1" style="color:var(--bad);cursor:pointer;background:none;border:none">Remove</button>
+            </div>
+          </div>
+        </template>
+      </div>
+
+      <!-- Certifications -->
+      <div class="card mb-4">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="font-semibold text-sm" style="color:var(--text)">Certifications</h3>
+          <button @click="addCert()" class="btn-ghost text-xs">＋ Add</button>
+        </div>
+        <template x-for="(cert,i) in resume.certifications" :key="i">
+          <div class="flex gap-3 mb-2 items-center">
+            <input class="field flex-1" x-model="cert.name" @input="fieldChanged()" placeholder="AWS Certified Solutions Architect">
+            <input class="field w-28" x-model="cert.year" @input="fieldChanged()" placeholder="2024">
+            <button @click="removeCert(i)" class="text-sm" style="color:var(--bad);cursor:pointer;background:none;border:none">✕</button>
+          </div>
+        </template>
+      </div>
+
+      <!-- Share section -->
+      <div class="card mb-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <h3 class="font-semibold text-sm" style="color:var(--text)">Public Share Link</h3>
+            <p class="text-xs mt-0.5" style="color:var(--text-muted)">Share a read-only version of this resume</p>
+          </div>
+          <div class="flex items-center gap-3">
+            <div class="toggle-wrap" @click="toggleShare()">
+              <div class="toggle" :class="currentResume?.is_public?'on':''"></div>
+              <span class="text-sm" style="color:var(--text-muted)" x-text="currentResume?.is_public?'Public':'Private'"></span>
+            </div>
+          </div>
+        </div>
+        <template x-if="currentResume?.is_public">
+          <div class="mt-3 flex items-center gap-2">
+            <input class="field text-xs flex-1" readonly
+                   :value="`${location.origin}/share/${currentResume.share_token}`">
+            <button @click="copyShareLink()" class="btn-ghost text-xs">Copy</button>
+          </div>
+        </template>
+      </div>
+    </section>
+
+    <!-- ─── ATS SCORE ─── -->
+    <section x-show="ready && view==='ats'" class="section-view">
+      <h2 class="text-xl font-bold mb-5" style="color:var(--text)">ATS Score Analysis</h2>
+
+      <div x-show="!atsReport" class="card text-center py-12">
+        <div class="text-4xl mb-3">📊</div>
+        <p class="mb-4 text-sm" style="color:var(--text-muted)">Run a scan to see how well your resume performs</p>
+        <button @click="runAts()" class="btn-brand" :disabled="atsLoading">
+          <span x-show="!atsLoading">Analyse my resume</span>
+          <span x-show="atsLoading" class="flex items-center gap-2"><span class="spinner"></span> Analysing…</span>
+        </button>
+      </div>
+
+      <template x-if="atsReport">
+        <div>
+          <!-- Overall score -->
+          <div class="card mb-5 text-center py-8">
+            <div class="text-7xl font-black mb-1"
+                 :class="atsReport.overall>=70?'text-green-500':atsReport.overall>=45?'text-yellow-500':'text-red-500'"
+                 x-text="Math.round(atsReport.overall)"></div>
+            <div class="text-sm" style="color:var(--text-muted)">out of 100</div>
+            <div class="mt-2 font-semibold" style="color:var(--text)"
+                 x-text="atsReport.overall>=70?'🎉 Strong resume — great ATS compatibility':atsReport.overall>=45?'⚠️ Room for improvement':'❌ Needs significant work'"></div>
+          </div>
+
+          <!-- Dimension scores -->
+          <div class="card mb-5">
+            <h3 class="font-semibold mb-4" style="color:var(--text)">Score Breakdown</h3>
+            <template x-for="[key,val] in Object.entries(atsReport.dimensions||{})" :key="key">
+              <div class="mb-4">
+                <div class="flex justify-between items-center mb-1">
+                  <span class="text-sm font-medium capitalize" style="color:var(--text)" x-text="key.replace(/_/g,' ')"></span>
+                  <span class="text-sm font-bold"
+                        :class="val>=70?'text-green-500':val>=45?'text-yellow-500':'text-red-500'"
+                        x-text="Math.round(val)+'%'"></span>
+                </div>
+                <div class="progress-track">
+                  <div class="progress-fill" :style="`width:${val}%;background:${val>=70?'var(--good)':val>=45?'var(--warn)':'var(--bad)'}`"></div>
+                </div>
+              </div>
+            </template>
+          </div>
+
+          <!-- Suggestions -->
+          <div class="card mb-4">
+            <h3 class="font-semibold mb-3" style="color:var(--text)">Improvement Suggestions</h3>
+            <template x-for="s in (atsReport.suggestions||[])" :key="s">
+              <div class="flex gap-2 mb-2 text-sm">
+                <span>💡</span>
+                <span style="color:var(--text)" x-text="s"></span>
+              </div>
+            </template>
+          </div>
+
+          <button @click="runAts()" class="btn-ghost text-sm" :disabled="atsLoading">↻ Re-analyse</button>
+        </div>
+      </template>
+    </section>
+
+    <!-- ─── JOB MATCH ─── -->
+    <section x-show="ready && view==='match'" class="section-view">
+      <h2 class="text-xl font-bold mb-5" style="color:var(--text)">Job Description Match</h2>
+      <div class="card mb-4">
+        <label class="label">Paste the job description</label>
+        <textarea class="field" rows="8" x-model="jdText" placeholder="Paste the full job description here…"></textarea>
+        <button @click="runMatch()" class="btn-brand mt-3" :disabled="matchLoading || !jdText.trim()">
+          <span x-show="!matchLoading">🎯 Analyse Match</span>
+          <span x-show="matchLoading" class="flex items-center gap-2"><span class="spinner"></span> Analysing…</span>
+        </button>
+      </div>
+      <template x-if="matchReport">
+        <div>
+          <div class="card mb-4 text-center py-6">
+            <div class="text-6xl font-black mb-1"
+                 :class="matchReport.overall_match>=70?'text-green-500':matchReport.overall_match>=45?'text-yellow-500':'text-red-500'"
+                 x-text="Math.round(matchReport.overall_match||0)+'%'"></div>
+            <div style="color:var(--text-muted)" class="text-sm">overall match</div>
+          </div>
+          <div class="card mb-4">
+            <h3 class="font-semibold mb-3" style="color:var(--text)">Missing Keywords</h3>
+            <div class="flex flex-wrap gap-2">
+              <template x-for="kw in (matchReport.missing_keywords||[])" :key="kw">
+                <span class="badge-bad text-xs" x-text="kw"></span>
+              </template>
+            </div>
+          </div>
+          <div class="card mb-4">
+            <h3 class="font-semibold mb-3" style="color:var(--text)">Matched Skills</h3>
+            <div class="flex flex-wrap gap-2">
+              <template x-for="sk in (matchReport.matched_skills||[])" :key="sk">
+                <span class="badge-good text-xs" x-text="sk"></span>
+              </template>
+            </div>
+          </div>
+          <div class="card" x-show="(matchReport.recommendations||[]).length">
+            <h3 class="font-semibold mb-3" style="color:var(--text)">Recommendations</h3>
+            <template x-for="r in (matchReport.recommendations||[])" :key="r">
+              <div class="flex gap-2 mb-1.5 text-sm"><span>→</span><span style="color:var(--text)" x-text="r"></span></div>
+            </template>
+          </div>
+        </div>
+      </template>
+    </section>
+
+    <!-- ─── COVER LETTER ─── -->
+    <section x-show="ready && view==='cover'" class="section-view">
+      <h2 class="text-xl font-bold mb-5" style="color:var(--text)">Cover Letter Generator</h2>
+      <div class="card mb-4">
+        <div class="grid grid-cols-2 gap-3 mb-3">
+          <div><label class="label">Company Name</label>
+            <input class="field" x-model="coverCompany" placeholder="Google, Microsoft…"></div>
+          <div><label class="label">Role</label>
+            <input class="field" x-model="coverRole" placeholder="Software Engineer"></div>
+        </div>
+        <label class="label">Job Description</label>
+        <textarea class="field" rows="5" x-model="coverJd" placeholder="Paste the job description…"></textarea>
+        <button @click="genCover()" class="btn-brand mt-3" :disabled="coverLoading || !coverJd.trim()">
+          <span x-show="!coverLoading">✨ Generate Cover Letter</span>
+          <span x-show="coverLoading" class="flex items-center gap-2"><span class="spinner"></span> Writing…</span>
+        </button>
+      </div>
+      <template x-if="coverLetter">
+        <div class="card">
+          <div class="flex justify-between items-center mb-3">
+            <h3 class="font-semibold" style="color:var(--text)">Generated Cover Letter</h3>
+            <div class="flex gap-2">
+              <button @click="copyCover()" class="btn-ghost text-xs">Copy</button>
+              <button @click="downloadCoverPdf()" class="btn-brand text-xs" :disabled="coverPdfLoading">
+                <span x-show="!coverPdfLoading">⬇ PDF</span>
+                <span x-show="coverPdfLoading" class="flex items-center gap-1"><span class="spinner"></span></span>
+              </button>
+            </div>
+          </div>
+          <pre class="text-sm whitespace-pre-wrap leading-relaxed" style="color:var(--text);font-family:inherit" x-text="coverLetter"></pre>
+        </div>
+      </template>
+    </section>
+
+    <!-- ─── TEMPLATES ─── -->
+    <section x-show="ready && view==='templates'" class="section-view">
+      <h2 class="text-xl font-bold mb-5" style="color:var(--text)">Resume Templates</h2>
+      <div class="grid grid-cols-2 gap-4">
+        <template x-for="tpl in templates" :key="tpl.id">
+          <div class="card cursor-pointer transition-all"
+               :class="currentResume?.template===tpl.id?'ring-2 ring-indigo-500':'hover:shadow-md'"
+               @click="setTemplate(tpl.id)">
+            <div class="text-3xl mb-2" x-text="tpl.icon"></div>
+            <div class="font-semibold" style="color:var(--text)" x-text="tpl.name"></div>
+            <div class="text-xs mt-1" style="color:var(--text-muted)" x-text="tpl.desc"></div>
+            <div x-show="currentResume?.template===tpl.id"
+                 class="mt-2 text-xs font-semibold" style="color:var(--brand-1)">✓ Active</div>
+          </div>
+        </template>
+      </div>
+    </section>
+
+    <!-- ─── AI CHAT ─── -->
+    <section x-show="ready && view==='chat'" class="section-view">
+      <h2 class="text-xl font-bold mb-5" style="color:var(--text)">AI Career Coach 💬</h2>
+      <div class="card flex flex-col" style="height:65vh">
+        <!-- Messages -->
+        <div class="flex-1 overflow-y-auto p-3 space-y-3" id="chatBox">
+          <div class="flex gap-2">
+            <div class="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 text-xs"
+                 style="background:linear-gradient(135deg,var(--brand-1),var(--brand-3));color:white">AI</div>
+            <div class="text-sm p-3 rounded-2xl rounded-tl-none max-w-sm" style="background:var(--surface-2);color:var(--text)">
+              Hi! I'm your AI career coach. Ask me anything about your resume, job search strategy, or interview prep. 🚀
+            </div>
+          </div>
+          <template x-for="msg in chatMessages" :key="msg.id">
+            <div :class="msg.role==='user'?'flex justify-end':'flex gap-2'">
+              <template x-if="msg.role!=='user'">
+                <div class="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 text-xs"
+                     style="background:linear-gradient(135deg,var(--brand-1),var(--brand-3));color:white">AI</div>
+              </template>
+              <div class="text-sm p-3 rounded-2xl max-w-sm leading-relaxed whitespace-pre-wrap"
+                   :class="msg.role==='user'?'rounded-tr-none text-white':'rounded-tl-none'"
+                   :style="msg.role==='user'?'background:var(--brand-1)':'background:var(--surface-2);color:var(--text)'"
+                   x-text="msg.text"></div>
+            </div>
+          </template>
+          <div x-show="chatLoading" class="flex gap-2">
+            <div class="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 text-xs"
+                 style="background:linear-gradient(135deg,var(--brand-1),var(--brand-3));color:white">AI</div>
+            <div class="text-sm p-3 rounded-2xl rounded-tl-none" style="background:var(--surface-2)">
+              <span class="spinner spinner-dark"></span>
+            </div>
+          </div>
+        </div>
+        <!-- Input -->
+        <div class="border-t p-3 flex gap-2" style="border-color:var(--border)">
+          <input class="field flex-1 text-sm" x-model="chatInput"
+                 @keydown.enter.prevent="sendChat()"
+                 placeholder="Ask me about your resume…" :disabled="chatLoading">
+          <button @click="sendChat()" class="btn-brand text-sm px-4" :disabled="chatLoading||!chatInput.trim()">Send</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── PROFILE ─── -->
+    <section x-show="ready && view==='profile'" class="section-view">
+      <h2 class="text-xl font-bold mb-6" style="color:var(--text)">Profile & Settings</h2>
+      <div class="grid gap-5">
+
+        <!-- Account info -->
+        <div class="card">
+          <h3 class="font-semibold mb-4" style="color:var(--text)">Account Information</h3>
+          <div class="flex items-center gap-4 mb-5">
+            <div class="w-16 h-16 rounded-2xl flex items-center justify-center text-white text-2xl font-black flex-shrink-0"
+                 :style="`background:linear-gradient(135deg,${profileColor},var(--brand-2))`"
+                 x-text="(user?.name||'?').charAt(0).toUpperCase()"></div>
+            <div>
+              <div class="font-semibold" style="color:var(--text)" x-text="user?.name"></div>
+              <div class="text-sm" style="color:var(--text-muted)" x-text="user?.email"></div>
+              <div class="text-xs mt-1" style="color:var(--text-muted)"
+                   x-text="'Joined '+API.fmtDate(user?.created_at)+' · '+user?.login_count+' logins'"></div>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-3 mb-3">
+            <div><label class="label">Display Name</label>
+              <input class="field" x-model="profileName" placeholder="Your name"></div>
+            <div>
+              <label class="label">Avatar Colour</label>
+              <div class="flex gap-2 mt-1">
+                <template x-for="c in avatarColors" :key="c">
+                  <button class="w-8 h-8 rounded-full border-2 transition-all flex-shrink-0"
+                          :style="`background:${c};border-color:${profileColor===c?'var(--text)':'transparent'}`"
+                          @click="profileColor=c"></button>
+                </template>
+              </div>
+            </div>
+          </div>
+          <button @click="saveProfile()" class="btn-brand text-sm" :disabled="profileSaving">
+            <span x-show="!profileSaving">Save changes</span>
+            <span x-show="profileSaving" class="flex items-center gap-2"><span class="spinner"></span> Saving…</span>
+          </button>
+        </div>
+
+        <!-- Change password -->
+        <div class="card">
+          <h3 class="font-semibold mb-4" style="color:var(--text)">Change Password</h3>
+          <div class="grid gap-3 max-w-sm">
+            <div><label class="label">Current Password</label>
+              <input type="password" class="field" x-model="pwdCurrent" placeholder="••••••••"></div>
+            <div><label class="label">New Password</label>
+              <input type="password" class="field" x-model="pwdNew" placeholder="At least 6 characters" minlength="6"></div>
+          </div>
+          <button @click="changePassword()" class="btn-brand text-sm mt-3" :disabled="pwdSaving">
+            <span x-show="!pwdSaving">Update password</span>
+            <span x-show="pwdSaving" class="flex items-center gap-2"><span class="spinner"></span> Updating…</span>
+          </button>
+        </div>
+
+        <!-- Preferences -->
+        <div class="card">
+          <h3 class="font-semibold mb-4" style="color:var(--text)">Appearance</h3>
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="text-sm font-medium" style="color:var(--text)">Dark Mode</div>
+              <div class="text-xs" style="color:var(--text-muted)">Easy on the eyes</div>
+            </div>
+            <div class="toggle-wrap" @click="toggleTheme()">
+              <div class="toggle" :class="theme==='dark'?'on':''"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Stats -->
+        <div class="card">
+          <h3 class="font-semibold mb-4" style="color:var(--text)">Your Activity</h3>
+          <div class="grid grid-cols-3 gap-3">
+            <div class="text-center p-3 rounded-xl" style="background:var(--surface-2)">
+              <div class="text-2xl font-bold" style="color:var(--brand-1)" x-text="resumes.length"></div>
+              <div class="text-xs mt-0.5" style="color:var(--text-muted)">Resumes</div>
+            </div>
+            <div class="text-center p-3 rounded-xl" style="background:var(--surface-2)">
+              <div class="text-2xl font-bold" style="color:var(--good)" x-text="user?.login_count||0"></div>
+              <div class="text-xs mt-0.5" style="color:var(--text-muted)">Sessions</div>
+            </div>
+            <div class="text-center p-3 rounded-xl" style="background:var(--surface-2)">
+              <div class="text-2xl font-bold" style="color:var(--warn)" x-text="resumes.filter(r=>r.is_public).length"></div>
+              <div class="text-xs mt-0.5" style="color:var(--text-muted)">Shared</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main><!-- end main -->
+</div><!-- end app shell -->
+
+<!-- ── Delete confirm modal ── -->
+<div x-data x-show="$store.modal.show" x-cloak class="modal-overlay" @click.self="$store.modal.show=false">
+  <div class="modal-box">
+    <div class="text-2xl mb-2">🗑️</div>
+    <h3 class="font-bold text-lg mb-1" style="color:var(--text)">Delete resume?</h3>
+    <p class="text-sm mb-5" style="color:var(--text-muted)">"<span x-text="$store.modal.title"></span>" will be permanently deleted.</p>
+    <div class="flex gap-3 justify-end">
+      <button @click="$store.modal.show=false" class="btn-ghost text-sm">Cancel</button>
+      <button @click="$store.modal.confirm()" class="btn-danger text-sm">Delete</button>
+    </div>
+  </div>
+</div>
+
+<script src="/static/js/api.js"></script>
+<script>
+document.addEventListener('alpine:init', () => {
+    Alpine.store('modal', { show: false, title: '', confirm: () => {} });
+
+    Alpine.data('appShell', () => ({
+        ready: false, user: null, view: 'dashboard', theme: 'light',
+
+        // Resumes
+        resumes: [], currentId: null, currentResume: null,
+        resume: {}, resumeTitle: '',
+
+        // Save state
+        saveState: 'unsaved', saveLabel: 'Not saved',
+        _saveTimer: null, _lastSaved: null,
+
+        // AI states
+        atsReport: null, atsLoading: false,
+        matchReport: null, matchLoading: false, jdText: '',
+        coverLetter: '', coverLoading: false, coverCompany: '', coverRole: '', coverJd: '',
+        coverPdfLoading: false,
+        aiLoading: false, bulletLoading: -1,
+        pdfLoading: false,
+
+        // Chat
+        chatMessages: [], chatInput: '', chatLoading: false, _chatId: 0,
+
+        // Profile
+        profileName: '', profileColor: '#6366f1', profileSaving: false,
+        pwdCurrent: '', pwdNew: '', pwdSaving: false,
+        avatarColors: ['#6366f1','#8b5cf6','#ec4899','#10b981','#f59e0b','#ef4444','#0ea5e9','#14b8a6'],
+
+        templates: [
+            { id:'modern',   icon:'✨', name:'Modern',   desc:'Clean two-column layout with colour accents' },
+            { id:'classic',  icon:'📰', name:'Classic',  desc:'Traditional single-column, timeless look' },
+            { id:'minimal',  icon:'⬜', name:'Minimal',  desc:'Ultra-clean, whitespace-forward design' },
+            { id:'creative', icon:'🎨', name:'Creative', desc:'Bold headings, ideal for design roles' },
+        ],
+
+        async init() {
+            this.theme = API.getTheme();
+            const tok = API.getToken();
+            if (!tok) { location.href = '/login'; return; }
+            try {
+                this.user = await API.me();
+                API.setAuth(tok, this.user);
+                this.profileName  = this.user.name;
+                this.profileColor = this.user.avatar_color || '#6366f1';
+                await this.loadResumes();
+            } catch { location.href = '/login'; }
+            this.ready = true;
+        },
+
+        getGreeting() {
+            const h = new Date().getHours();
+            if (h < 12) return 'Good morning';
+            if (h < 17) return 'Good afternoon';
+            return 'Good evening';
+        },
+
+        // ── Resumes ──
+        async loadResumes() {
+            try { this.resumes = await API.listResumes(); } catch {}
+        },
+
+        bestAts() {
+            const scores = this.resumes.map(r => r.ats_score).filter(Boolean);
+            return scores.length ? Math.max(...scores) : '—';
+        },
+
+        async createResume() {
+            try {
+                const r = await API.createResume({ title: 'Untitled Resume', template: 'modern' });
+                this.resumes.unshift(r);
+                await this.openResume(r.id);
+                API.toast('Resume created', 'success');
+            } catch (e) { API.toast(e.message, 'error'); }
+        },
+
+        async openResume(id) {
+            try {
+                const r = await API.getResume(id);
+                this.currentId      = id;
+                this.currentResume  = r;
+                this.resumeTitle    = r.title;
+                this.atsReport      = null;
+                this.resume         = this._normalise(r.data || {});
+                this.saveState      = 'saved';
+                this.saveLabel      = 'Saved';
+                this.view           = 'editor';
+            } catch (e) { API.toast(e.message, 'error'); }
+        },
+
+        _normalise(data) {
+            data.experience    = (data.experience || []).map(e => ({ ...e, bullets_raw: (e.bullets||[]).join('\n') }));
+            data.education     = data.education     || [];
+            data.skills        = data.skills        || [];
+            data.skills_raw    = (data.skills||[]).join(', ');
+            data.projects      = data.projects      || [];
+            data.certifications= data.certifications|| [];
+            return data;
+        },
+
+        async duplicateResume(id) {
+            try {
+                const r = await API.duplicateResume(id);
+                this.resumes.unshift(r);
+                API.toast('Resume duplicated', 'success');
+            } catch (e) { API.toast(e.message, 'error'); }
+        },
+
+        confirmDelete(r) {
+            Alpine.store('modal').title   = r.title;
+            Alpine.store('modal').confirm = async () => {
+                Alpine.store('modal').show = false;
+                try {
+                    await API.deleteResume(r.id);
+                    this.resumes = this.resumes.filter(x => x.id !== r.id);
+                    if (this.currentId === r.id) { this.currentId = null; this.view = 'dashboard'; }
+                    API.toast('Deleted', 'success');
+                } catch (e) { API.toast(e.message, 'error'); }
+            };
+            Alpine.store('modal').show = true;
+        },
+
+        // ── Auto-save ──
+        fieldChanged() { this._scheduleSave(); },
+
+        titleChanged() {
+            if (this.currentId) this._scheduleSave();
+        },
+
+        _scheduleSave() {
+            this.saveState = 'saving';
+            this.saveLabel = 'Saving…';
+            clearTimeout(this._saveTimer);
+            this._saveTimer = setTimeout(() => this._doSave(), 1500);
+        },
+
+        async _doSave() {
+            if (!this.currentId) return;
+            try {
+                const data = { ...this.resume };
+                delete data.skills_raw;
+                data.experience = (data.experience || []).map(e => {
+                    const c = { ...e };
+                    delete c.bullets_raw;
+                    return c;
+                });
+                const r = await API.updateResume(this.currentId, {
+                    title: this.resumeTitle,
+                    data: data,
+                });
+                this.currentResume = r;
+                const idx = this.resumes.findIndex(x => x.id === this.currentId);
+                if (idx >= 0) this.resumes[idx] = { ...this.resumes[idx], ...r };
+                this.saveState = 'saved';
+                this.saveLabel = 'Saved';
+            } catch {
+                this.saveState = 'unsaved';
+                this.saveLabel = 'Save failed';
+            }
+        },
+
+        // ── Editor helpers ──
+        addExp()     { this.resume.experience.push({ title:'', company:'', start:'', end:'Present', bullets:[], bullets_raw:'' }); this.fieldChanged(); },
+        removeExp(i) { this.resume.experience.splice(i,1); this.fieldChanged(); },
+        addEdu()     { this.resume.education.push({ degree:'', institution:'', year:'', gpa:'' }); this.fieldChanged(); },
+        removeEdu(i) { this.resume.education.splice(i,1); this.fieldChanged(); },
+        addProject() { this.resume.projects.push({ name:'', tech:'', description:'', url:'' }); this.fieldChanged(); },
+        removeProject(i) { this.resume.projects.splice(i,1); this.fieldChanged(); },
+        addCert()    { this.resume.certifications.push({ name:'', year:'' }); this.fieldChanged(); },
+        removeCert(i){ this.resume.certifications.splice(i,1); this.fieldChanged(); },
+
+        async enhanceBullets(expIdx) {
+            const exp = this.resume.experience[expIdx];
+            if (!exp.bullets_raw.trim()) return;
+            this.bulletLoading = expIdx;
+            try {
+                const lines = exp.bullets_raw.split('\n').filter(b => b.trim());
+                const enhanced = await Promise.all(
+                    lines.map(b => API.enhanceBullet(b, exp.title).then(r => r.enhanced))
+                );
+                exp.bullets     = enhanced;
+                exp.bullets_raw = enhanced.join('\n');
+                this.fieldChanged();
+                API.toast('Bullets enhanced ✨', 'success');
+            } catch (e) { API.toast(e.message, 'error'); }
+            this.bulletLoading = -1;
+        },
+
+        async genSummary() {
+            if (!this.currentId) return;
+            this.aiLoading = true;
+            try {
+                const r = await API.genSummary(this.resume);
+                this.resume.summary = r.summary;
+                this.fieldChanged();
+                API.toast('Summary generated ✨', 'success');
+            } catch (e) { API.toast(e.message, 'error'); }
+            this.aiLoading = false;
+        },
+
+        async suggestSkills() {
+            this.aiLoading = true;
+            try {
+                const r = await API.suggestSkills(this.resume);
+                const existing = new Set(this.resume.skills);
+                const added = (r.suggestions || []).filter(s => !existing.has(s)).slice(0, 10);
+                this.resume.skills = [...this.resume.skills, ...added];
+                this.resume.skills_raw = this.resume.skills.join(', ');
+                this.fieldChanged();
+                API.toast(`Added ${added.length} skill suggestions`, 'success');
+            } catch (e) { API.toast(e.message, 'error'); }
+            this.aiLoading = false;
+        },
+
+        // ── ATS ──
+        async runAts() {
+            if (!this.currentId) return;
+            this.atsLoading = true;
+            this.view = 'ats';
+            try {
+                this.atsReport = await API.ats(this.resume);
+                // Save ATS score
+                await API.updateResume(this.currentId, { ats_score: Math.round(this.atsReport.overall) });
+                const idx = this.resumes.findIndex(x => x.id === this.currentId);
+                if (idx >= 0) this.resumes[idx].ats_score = Math.round(this.atsReport.overall);
+            } catch (e) { API.toast(e.message, 'error'); }
+            this.atsLoading = false;
+        },
+
+        // ── Match ──
+        async runMatch() {
+            this.matchLoading = true;
+            try { this.matchReport = await API.match(this.resume, this.jdText); }
+            catch (e) { API.toast(e.message, 'error'); }
+            this.matchLoading = false;
+        },
+
+        // ── Cover letter ──
+        async genCover() {
+            this.coverLoading = true;
+            try {
+                const r = await API.genCover(this.resume, this.coverJd, this.coverCompany);
+                this.coverLetter = r.letter;
+            } catch (e) { API.toast(e.message, 'error'); }
+            this.coverLoading = false;
+        },
+        copyCover() {
+            navigator.clipboard.writeText(this.coverLetter);
+            API.toast('Copied to clipboard', 'success');
+        },
+        async downloadCoverPdf() {
+            this.coverPdfLoading = true;
+            try {
+                const blob = await API.coverLetterPdf(this.coverLetter, this.resume.name, this.currentResume?.template);
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = 'cover-letter.pdf';
+                a.click();
+            } catch (e) { API.toast(e.message, 'error'); }
+            this.coverPdfLoading = false;
+        },
+
+        // ── Export PDF ──
+        async exportPdf() {
+            this.pdfLoading = true;
+            try {
+                await this._doSave();
+                const url = await API.pdfUrl(this.currentId);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${this.resumeTitle || 'resume'}.pdf`;
+                a.click();
+                API.toast('PDF downloaded', 'success');
+            } catch (e) { API.toast(e.message, 'error'); }
+            this.pdfLoading = false;
+        },
+
+        // ── Share ──
+        async toggleShare() {
+            if (!this.currentId) return;
+            const newState = !this.currentResume?.is_public;
+            try {
+                const r = await API.updateResume(this.currentId, { is_public: newState });
+                this.currentResume = r;
+                API.toast(newState ? 'Resume made public 🔗' : 'Resume set to private', 'info');
+            } catch (e) { API.toast(e.message, 'error'); }
+        },
+        copyShareLink() {
+            navigator.clipboard.writeText(`${location.origin}/share/${this.currentResume.share_token}`);
+            API.toast('Link copied!', 'success');
+        },
+
+        // ── Template ──
+        async setTemplate(tplId) {
+            if (!this.currentId) return;
+            try {
+                const r = await API.updateResume(this.currentId, { template: tplId });
+                this.currentResume = r;
+                API.toast(`Template changed to ${tplId}`, 'success');
+            } catch (e) { API.toast(e.message, 'error'); }
+        },
+
+        // ── Chat ──
+        async sendChat() {
+            if (!this.chatInput.trim() || this.chatLoading) return;
+            const msg = this.chatInput.trim();
+            this.chatInput = '';
+            this.chatMessages.push({ id: ++this._chatId, role: 'user', text: msg });
+            this.chatLoading = true;
+            this._scrollChat();
+            try {
+                const r = await API.chat(msg, this.resume || {});
+                this.chatMessages.push({ id: ++this._chatId, role: 'ai', text: r.reply });
+            } catch (e) {
+                this.chatMessages.push({ id: ++this._chatId, role: 'ai', text: 'Sorry, I encountered an error. Please try again.' });
+            }
+            this.chatLoading = false;
+            this.$nextTick(() => this._scrollChat());
+        },
+        _scrollChat() {
+            const box = document.getElementById('chatBox');
+            if (box) box.scrollTop = box.scrollHeight;
+        },
+
+        // ── Profile ──
+        async saveProfile() {
+            this.profileSaving = true;
+            try {
+                const u = await API.updateProfile({ name: this.profileName, avatar_color: this.profileColor });
+                this.user = u;
+                API.setAuth(API.getToken(), u);
+                API.toast('Profile updated', 'success');
+            } catch (e) { API.toast(e.message, 'error'); }
+            this.profileSaving = false;
+        },
+        async changePassword() {
+            if (!this.pwdCurrent || !this.pwdNew) { API.toast('Fill in both fields', 'warn'); return; }
+            this.pwdSaving = true;
+            try {
+                await API.changePassword(this.pwdCurrent, this.pwdNew);
+                this.pwdCurrent = ''; this.pwdNew = '';
+                API.toast('Password updated ✓', 'success');
+            } catch (e) { API.toast(e.message, 'error'); }
+            this.pwdSaving = false;
+        },
+
+        // ── Theme ──
+        toggleTheme() {
+            this.theme = API.toggleTheme();
+        },
+
+        // ── Logout ──
+        logout() {
+            API.clearAuth();
+            location.href = '/login';
+        },
+    }));
+});
+</script>
+</body>
+</html>

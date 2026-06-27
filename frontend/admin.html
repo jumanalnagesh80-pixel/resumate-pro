@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Panel — ResuMate AI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>tailwind.config={darkMode:'class'};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+<link rel="stylesheet" href="/static/css/styles.css">
+<style>
+body{background:var(--bg);color:var(--text);}
+.admin-sidebar{width:220px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);height:100vh;position:sticky;top:0;overflow-y:auto;display:flex;flex-direction:column;}
+.admin-main{flex:1;overflow-y:auto;height:100vh;background:var(--bg);}
+</style>
+</head>
+<body>
+<div x-data="adminShell" x-init="init()" x-cloak class="flex min-h-screen">
+
+  <!-- ═══ ADMIN SIDEBAR ═══ -->
+  <aside class="admin-sidebar">
+    <!-- Logo -->
+    <div class="p-4 border-b" style="border-color:var(--border)">
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 rounded-lg flex items-center justify-center"
+             style="background:linear-gradient(135deg,#ef4444,#dc2626)">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          </svg>
+        </div>
+        <div>
+          <div class="text-xs font-bold" style="color:var(--text)">Admin Panel</div>
+          <div class="text-xs" style="color:var(--text-muted)">ResuMate AI</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Nav -->
+    <nav class="flex-1 p-3 space-y-0.5">
+      <div :class="'nav-link'+(view==='overview'?' active':'')" @click="view='overview'">
+        <span>📊</span><span>Overview</span>
+      </div>
+      <div :class="'nav-link'+(view==='users'?' active':'')" @click="loadUsers();view='users'">
+        <span>👥</span><span>Users</span>
+        <span class="ml-auto text-xs font-bold px-1.5 py-0.5 rounded" style="background:var(--surface-2);color:var(--text-muted)"
+              x-text="stats?.total_users||''"></span>
+      </div>
+      <div :class="'nav-link'+(view==='resumes'?' active':'')" @click="loadResumes();view='resumes'">
+        <span>📄</span><span>Resumes</span>
+        <span class="ml-auto text-xs font-bold px-1.5 py-0.5 rounded" style="background:var(--surface-2);color:var(--text-muted)"
+              x-text="stats?.total_resumes||''"></span>
+      </div>
+      <div :class="'nav-link'+(view==='activity'?' active':'')" @click="loadActivity();view='activity'">
+        <span>📋</span><span>Activity Log</span>
+      </div>
+    </nav>
+
+    <!-- Back & user -->
+    <div class="p-3 border-t" style="border-color:var(--border)">
+      <a href="/app" class="nav-link" style="text-decoration:none;margin-bottom:.5rem">
+        <span>←</span><span>Back to App</span>
+      </a>
+      <div class="flex items-center gap-2 px-2 mt-2">
+        <div class="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
+             style="background:linear-gradient(135deg,#ef4444,#dc2626)"
+             x-text="(user?.name||'A').charAt(0).toUpperCase()"></div>
+        <div class="min-w-0">
+          <div class="text-xs font-semibold truncate" style="color:var(--text)" x-text="user?.name"></div>
+          <div class="text-xs" style="color:var(--bad)">Administrator</div>
+        </div>
+        <button @click="toggleTheme()" class="ml-auto btn-ghost border-0 px-1.5 py-1 text-xs">
+          <span x-text="theme==='dark'?'☀️':'🌙'"></span>
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ═══ ADMIN MAIN ═══ -->
+  <main class="admin-main">
+
+    <!-- Loading -->
+    <div x-show="!ready" class="flex items-center justify-center" style="min-height:100vh">
+      <div class="text-center">
+        <div class="spinner spinner-dark mx-auto" style="width:2rem;height:2rem;border-width:3px"></div>
+        <p class="mt-3 text-sm" style="color:var(--text-muted)">Loading admin panel…</p>
+      </div>
+    </div>
+
+    <!-- ─── OVERVIEW ─── -->
+    <div x-show="ready && view==='overview'" class="p-8">
+      <div class="flex items-center justify-between mb-6">
+        <div>
+          <h1 class="text-2xl font-bold" style="color:var(--text)">Dashboard Overview</h1>
+          <p class="text-sm mt-0.5" style="color:var(--text-muted)">Platform health at a glance</p>
+        </div>
+        <button @click="loadStats()" class="btn-ghost text-sm flex items-center gap-1.5">
+          <span>↻</span> Refresh
+        </button>
+      </div>
+
+      <!-- Stat cards -->
+      <div class="grid grid-cols-4 gap-4 mb-8">
+        <div class="stat-card">
+          <div class="text-2xl mb-1">👥</div>
+          <div class="stat-value" style="color:var(--brand-1)" x-text="stats?.total_users??'—'"></div>
+          <div class="stat-label">Total Users</div>
+          <div class="stat-trend" style="color:var(--good)" x-text="'+'+stats?.new_today+' today'"></div>
+        </div>
+        <div class="stat-card">
+          <div class="text-2xl mb-1">📄</div>
+          <div class="stat-value" style="color:var(--brand-2)" x-text="stats?.total_resumes??'—'"></div>
+          <div class="stat-label">Total Resumes</div>
+          <div class="stat-trend" style="color:var(--text-muted)" x-text="stats?.public_resumes+' public'"></div>
+        </div>
+        <div class="stat-card">
+          <div class="text-2xl mb-1">🟢</div>
+          <div class="stat-value" style="color:var(--good)" x-text="stats?.active_users??'—'"></div>
+          <div class="stat-label">Active Users</div>
+          <div class="stat-trend" style="color:var(--text-muted)">accounts enabled</div>
+        </div>
+        <div class="stat-card">
+          <div class="text-2xl mb-1">🔑</div>
+          <div class="stat-value" style="color:var(--warn)" x-text="stats?.total_logins??'—'"></div>
+          <div class="stat-label">Total Logins</div>
+          <div class="stat-trend" style="color:var(--text-muted)" x-text="stats?.new_this_week+' users this week'"></div>
+        </div>
+      </div>
+
+      <!-- Growth chart -->
+      <div class="card mb-6">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="font-semibold" style="color:var(--text)">User Signups — Last 30 Days</h3>
+          <div class="text-xs px-2 py-1 rounded-lg font-semibold" style="background:rgba(99,102,241,.12);color:var(--brand-1)"
+               x-text="stats?.new_this_week+' this week'"></div>
+        </div>
+        <div style="height:160px;position:relative" id="growthChart">
+          <!-- Simple bar chart rendered in SVG -->
+          <svg id="growthSvg" width="100%" height="160" style="display:block"></svg>
+        </div>
+      </div>
+
+      <!-- Recent users table -->
+      <div class="card">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="font-semibold" style="color:var(--text)">Recent Signups</h3>
+          <button @click="loadUsers();view='users'" class="btn-ghost text-xs">View all →</button>
+        </div>
+        <div x-show="recentUsers.length===0" class="text-center py-6 text-sm" style="color:var(--text-muted)">No users yet</div>
+        <table class="data-table" x-show="recentUsers.length>0">
+          <thead><tr>
+            <th>User</th><th>Email</th><th>Joined</th><th>Resumes</th><th>Status</th>
+          </tr></thead>
+          <tbody>
+            <template x-for="u in recentUsers" :key="u.id">
+              <tr>
+                <td>
+                  <div class="flex items-center gap-2">
+                    <div class="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
+                         style="background:linear-gradient(135deg,var(--brand-1),var(--brand-2))"
+                         x-text="(u.name||u.email).charAt(0).toUpperCase()"></div>
+                    <span class="font-medium" style="color:var(--text)" x-text="u.name||'—'"></span>
+                  </div>
+                </td>
+                <td style="color:var(--text-muted)" x-text="u.email"></td>
+                <td style="color:var(--text-muted)" x-text="API.fmtDate(u.created_at)"></td>
+                <td><span class="badge-info" x-text="u.resume_count"></span></td>
+                <td>
+                  <span :class="u.is_admin?'badge-bad':u.is_active?'badge-good':'badge-warn'"
+                        x-text="u.is_admin?'Admin':u.is_active?'Active':'Banned'"></span>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ─── USERS ─── -->
+    <div x-show="ready && view==='users'" class="p-8">
+      <div class="flex items-center justify-between mb-6">
+        <h1 class="text-2xl font-bold" style="color:var(--text)">User Management</h1>
+        <div class="text-sm" style="color:var(--text-muted)" x-text="usersTotal+' total users'"></div>
+      </div>
+
+      <!-- Search -->
+      <div class="search-wrap mb-4">
+        <span class="search-icon">🔍</span>
+        <input class="field pl-9" placeholder="Search by name or email…"
+               x-model="userSearch" @input.debounce.400ms="searchUsers()">
+      </div>
+
+      <div class="card p-0 overflow-hidden">
+        <!-- Loading skeleton -->
+        <div x-show="usersLoading" class="p-6 space-y-3">
+          <template x-for="i in [1,2,3,4,5]" :key="i">
+            <div class="flex gap-3 items-center">
+              <div class="skeleton w-8 h-8 rounded-full"></div>
+              <div class="flex-1 space-y-1.5">
+                <div class="skeleton h-3 w-40 rounded"></div>
+                <div class="skeleton h-2.5 w-56 rounded"></div>
+              </div>
+              <div class="skeleton h-6 w-16 rounded-full"></div>
+            </div>
+          </template>
+        </div>
+
+        <table class="data-table" x-show="!usersLoading && users.length>0">
+          <thead><tr>
+            <th>User</th><th>Email</th><th>Joined</th><th>Last Login</th><th>Resumes</th><th>Role</th><th>Actions</th>
+          </tr></thead>
+          <tbody>
+            <template x-for="u in users" :key="u.id">
+              <tr>
+                <td>
+                  <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
+                         style="background:linear-gradient(135deg,var(--brand-1),var(--brand-2))"
+                         x-text="(u.name||u.email).charAt(0).toUpperCase()"></div>
+                    <span class="font-medium text-sm" style="color:var(--text)" x-text="u.name||'No name'"></span>
+                  </div>
+                </td>
+                <td class="text-sm" style="color:var(--text-muted)" x-text="u.email"></td>
+                <td class="text-sm" style="color:var(--text-muted)" x-text="API.fmtDate(u.created_at)"></td>
+                <td class="text-sm" style="color:var(--text-muted)" x-text="API.timeAgo(u.last_login)"></td>
+                <td><span class="badge-info text-xs" x-text="u.resume_count"></span></td>
+                <td>
+                  <span :class="u.is_admin?'badge-bad':u.is_active?'badge-good':'badge-warn'"
+                        x-text="u.is_admin?'Admin':u.is_active?'Active':'Banned'"></span>
+                </td>
+                <td>
+                  <div class="flex gap-1">
+                    <!-- Toggle ban -->
+                    <button @click="toggleBan(u)"
+                            :class="u.is_active?'btn-ghost':'btn-success'"
+                            class="text-xs px-2 py-1"
+                            :title="u.is_active?'Ban user':'Unban user'"
+                            :disabled="u.id===adminId">
+                      <span x-text="u.is_active?'Ban':'Unban'"></span>
+                    </button>
+                    <!-- Toggle admin -->
+                    <button @click="toggleAdmin(u)"
+                            :class="u.is_admin?'btn-ghost':'btn-ghost'"
+                            class="text-xs px-2 py-1"
+                            :title="u.is_admin?'Remove admin':'Make admin'"
+                            :disabled="u.id===adminId"
+                            :style="u.is_admin?'color:var(--bad)':''">
+                      <span x-text="u.is_admin?'⬇ Admin':'⬆ Admin'"></span>
+                    </button>
+                    <!-- Delete -->
+                    <button @click="confirmDeleteUser(u)" class="btn-danger text-xs px-2 py-1" :disabled="u.id===adminId">✕</button>
+                  </div>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+
+        <div x-show="!usersLoading && users.length===0" class="text-center py-12 text-sm" style="color:var(--text-muted)">
+          No users found
+        </div>
+      </div>
+
+      <!-- Pagination -->
+      <div class="flex justify-between items-center mt-4">
+        <span class="text-sm" style="color:var(--text-muted)"
+              x-text="`Showing ${users.length} of ${usersTotal}`"></span>
+        <div class="flex gap-2">
+          <button @click="prevPage()" class="btn-ghost text-sm" :disabled="usersPage===0">← Prev</button>
+          <span class="text-sm px-3 py-1.5" style="color:var(--text-muted)"
+                x-text="'Page '+(usersPage+1)+' of '+Math.max(1,Math.ceil(usersTotal/usersLimit))"></span>
+          <button @click="nextPage()" class="btn-ghost text-sm"
+                  :disabled="(usersPage+1)*usersLimit>=usersTotal">Next →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── RESUMES ─── -->
+    <div x-show="ready && view==='resumes'" class="p-8">
+      <div class="flex items-center justify-between mb-6">
+        <h1 class="text-2xl font-bold" style="color:var(--text)">All Resumes</h1>
+        <div class="text-sm" style="color:var(--text-muted)" x-text="resumesTotal+' total'"></div>
+      </div>
+
+      <div class="card p-0 overflow-hidden">
+        <div x-show="resumesLoading" class="p-6 text-center">
+          <span class="spinner spinner-dark"></span>
+        </div>
+        <table class="data-table" x-show="!resumesLoading && allResumes.length>0">
+          <thead><tr>
+            <th>Title</th><th>Owner</th><th>Template</th><th>ATS Score</th><th>Views</th><th>Updated</th><th>Visibility</th><th></th>
+          </tr></thead>
+          <tbody>
+            <template x-for="r in allResumes" :key="r.id">
+              <tr>
+                <td class="font-medium text-sm" style="color:var(--text)" x-text="r.title"></td>
+                <td>
+                  <div class="text-sm" style="color:var(--text)" x-text="r.owner_name||'—'"></div>
+                  <div class="text-xs" style="color:var(--text-muted)" x-text="r.owner_email"></div>
+                </td>
+                <td class="text-sm" style="color:var(--text-muted)" x-text="r.template"></td>
+                <td>
+                  <template x-if="r.ats_score">
+                    <span :class="r.ats_score>=70?'badge-good':r.ats_score>=45?'badge-warn':'badge-bad'"
+                          x-text="r.ats_score"></span>
+                  </template>
+                  <span x-if="!r.ats_score" style="color:var(--text-muted)" class="text-xs">—</span>
+                </td>
+                <td class="text-sm" style="color:var(--text-muted)" x-text="r.view_count"></td>
+                <td class="text-sm" style="color:var(--text-muted)" x-text="API.timeAgo(r.updated_at)"></td>
+                <td>
+                  <span :class="r.is_public?'badge-info':''"
+                        :style="!r.is_public?'color:var(--text-muted);font-size:.75rem':''"
+                        x-text="r.is_public?'Public':'Private'"></span>
+                </td>
+                <td>
+                  <button @click="confirmDeleteResume(r)" class="btn-danger text-xs px-2 py-1">✕</button>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+        <div x-show="!resumesLoading && allResumes.length===0" class="text-center py-12 text-sm" style="color:var(--text-muted)">
+          No resumes yet
+        </div>
+      </div>
+
+      <!-- Pagination -->
+      <div class="flex justify-between items-center mt-4">
+        <span class="text-sm" style="color:var(--text-muted)"
+              x-text="`Showing ${allResumes.length} of ${resumesTotal}`"></span>
+        <div class="flex gap-2">
+          <button @click="prevResumePage()" class="btn-ghost text-sm" :disabled="resumesPage===0">← Prev</button>
+          <span class="text-sm px-3 py-1.5" style="color:var(--text-muted)"
+                x-text="'Page '+(resumesPage+1)+' of '+Math.max(1,Math.ceil(resumesTotal/resumesLimit))"></span>
+          <button @click="nextResumePage()" class="btn-ghost text-sm"
+                  :disabled="(resumesPage+1)*resumesLimit>=resumesTotal">Next →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── ACTIVITY LOG ─── -->
+    <div x-show="ready && view==='activity'" class="p-8">
+      <h1 class="text-2xl font-bold mb-6" style="color:var(--text)">Activity Log</h1>
+      <div class="card p-0 overflow-hidden">
+        <div x-show="activityLoading" class="p-6 text-center"><span class="spinner spinner-dark"></span></div>
+        <table class="data-table" x-show="!activityLoading">
+          <thead><tr><th>User</th><th>Action</th><th>Detail</th><th>Time</th></tr></thead>
+          <tbody>
+            <template x-for="log in activityLogs" :key="log.id">
+              <tr>
+                <td>
+                  <div class="text-sm font-medium" style="color:var(--text)" x-text="log.user_name||log.user_email"></div>
+                  <div class="text-xs" style="color:var(--text-muted)" x-text="log.user_email"></div>
+                </td>
+                <td>
+                  <span :class="'action-badge '+actionBadgeClass(log.action)" x-text="log.action.replace(/_/g,' ')"></span>
+                </td>
+                <td class="text-sm" style="color:var(--text-muted)" x-text="log.detail||'—'"></td>
+                <td class="text-sm" style="color:var(--text-muted)" x-text="API.timeAgo(log.created_at)"></td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+        <div x-show="!activityLoading && activityLogs.length===0" class="text-center py-12 text-sm" style="color:var(--text-muted)">
+          No activity yet
+        </div>
+      </div>
+
+      <!-- Pagination -->
+      <div class="flex justify-between items-center mt-4">
+        <span class="text-sm" style="color:var(--text-muted)"
+              x-text="`Showing ${activityLogs.length} of ${activityTotal}`"></span>
+        <div class="flex gap-2">
+          <button @click="prevActivityPage()" class="btn-ghost text-sm" :disabled="activityPage===0">← Prev</button>
+          <span class="text-sm px-3 py-1.5" style="color:var(--text-muted)"
+                x-text="'Page '+(activityPage+1)+' of '+Math.max(1,Math.ceil(activityTotal/activityLimit))"></span>
+          <button @click="nextActivityPage()" class="btn-ghost text-sm"
+                  :disabled="(activityPage+1)*activityLimit>=activityTotal">Next →</button>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ── Confirm modal ── -->
+<div x-data x-show="$store.adminModal.show" x-cloak class="modal-overlay" @click.self="$store.adminModal.show=false">
+  <div class="modal-box">
+    <div class="text-2xl mb-2" x-text="$store.adminModal.icon||'⚠️'"></div>
+    <h3 class="font-bold text-lg mb-1" style="color:var(--text)" x-text="$store.adminModal.title"></h3>
+    <p class="text-sm mb-5" style="color:var(--text-muted)" x-text="$store.adminModal.message"></p>
+    <div class="flex gap-3 justify-end">
+      <button @click="$store.adminModal.show=false" class="btn-ghost text-sm">Cancel</button>
+      <button @click="$store.adminModal.confirm()" class="btn-danger text-sm" x-text="$store.adminModal.confirmLabel||'Confirm'"></button>
+    </div>
+  </div>
+</div>
+
+<script src="/static/js/api.js"></script>
+<script>
+document.addEventListener('alpine:init', () => {
+    Alpine.store('adminModal', {
+        show: false, title: '', message: '', icon: '', confirmLabel: 'Confirm', confirm: ()=>{}
+    });
+
+    Alpine.data('adminShell', () => ({
+        ready: false, user: null, theme: 'light', adminId: null, view: 'overview',
+
+        stats: null,
+        recentUsers: [],
+        growthData: [],
+
+        users: [], usersTotal: 0, usersPage: 0, usersLimit: 20, userSearch: '', usersLoading: false,
+        allResumes: [], resumesTotal: 0, resumesPage: 0, resumesLimit: 20, resumesLoading: false,
+        activityLogs: [], activityTotal: 0, activityPage: 0, activityLimit: 30, activityLoading: false,
+
+        async init() {
+            this.theme = API.getTheme();
+            const tok = API.getToken();
+            if (!tok) { location.href = '/login'; return; }
+            try {
+                this.user = await API.me();
+                if (!this.user.is_admin) { location.href = '/app'; return; }
+                this.adminId = this.user.id;
+                await this.loadStats();
+                await this.loadUsers();
+            } catch { location.href = '/login'; }
+            this.ready = true;
+        },
+
+        async loadStats() {
+            try {
+                this.stats = await API.adminStats();
+                const growth = await API.adminGrowth(30);
+                this.growthData = growth.data || [];
+                this.$nextTick(() => this.renderGrowthChart());
+            } catch(e) { API.toast(e.message,'error'); }
+        },
+
+        async loadUsers() {
+            this.usersLoading = true;
+            try {
+                const r = await API.adminUsers(this.usersPage*this.usersLimit, this.usersLimit, this.userSearch);
+                this.users = r.users;
+                this.usersTotal = r.total;
+                // Populate recent users for overview
+                if (!this.recentUsers.length) this.recentUsers = r.users.slice(0,5);
+            } catch(e) { API.toast(e.message,'error'); }
+            this.usersLoading = false;
+        },
+
+        async searchUsers() { this.usersPage = 0; await this.loadUsers(); },
+        prevPage() { if (this.usersPage>0) { this.usersPage--; this.loadUsers(); } },
+        nextPage() { if ((this.usersPage+1)*this.usersLimit < this.usersTotal) { this.usersPage++; this.loadUsers(); } },
+
+        async loadResumes() {
+            this.resumesLoading = true;
+            try {
+                const r = await API.adminResumes(this.resumesPage*this.resumesLimit, this.resumesLimit);
+                this.allResumes = r.resumes;
+                this.resumesTotal = r.total;
+            } catch(e) { API.toast(e.message,'error'); }
+            this.resumesLoading = false;
+        },
+        prevResumePage() { if (this.resumesPage>0) { this.resumesPage--; this.loadResumes(); } },
+        nextResumePage() { if ((this.resumesPage+1)*this.resumesLimit < this.resumesTotal) { this.resumesPage++; this.loadResumes(); } },
+
+        async loadActivity() {
+            this.activityLoading = true;
+            try {
+                const r = await API.adminActivity(this.activityPage*this.activityLimit, this.activityLimit);
+                this.activityLogs = r.logs;
+                this.activityTotal = r.total;
+            } catch(e) { API.toast(e.message,'error'); }
+            this.activityLoading = false;
+        },
+        prevActivityPage() { if (this.activityPage>0) { this.activityPage--; this.loadActivity(); } },
+        nextActivityPage() { if ((this.activityPage+1)*this.activityLimit < this.activityTotal) { this.activityPage++; this.loadActivity(); } },
+
+        // ── User actions ──
+        async toggleBan(u) {
+            const newState = !u.is_active;
+            const label = newState ? 'unban' : 'ban';
+            Alpine.store('adminModal').icon = newState ? '✅' : '🚫';
+            Alpine.store('adminModal').title = `${label.charAt(0).toUpperCase()+label.slice(1)} user?`;
+            Alpine.store('adminModal').message = `This will ${label} ${u.email}.`;
+            Alpine.store('adminModal').confirmLabel = label.charAt(0).toUpperCase()+label.slice(1);
+            Alpine.store('adminModal').confirm = async () => {
+                Alpine.store('adminModal').show = false;
+                try {
+                    await API.adminUpdateUser(u.id, { is_active: newState });
+                    u.is_active = newState;
+                    API.toast(`User ${label}ned`, 'success');
+                } catch(e) { API.toast(e.message, 'error'); }
+            };
+            Alpine.store('adminModal').show = true;
+        },
+
+        async toggleAdmin(u) {
+            const newAdmin = !u.is_admin;
+            Alpine.store('adminModal').icon = newAdmin ? '🛡️' : '👤';
+            Alpine.store('adminModal').title = newAdmin ? 'Promote to Admin?' : 'Remove Admin?';
+            Alpine.store('adminModal').message = `${u.email} will ${newAdmin?'gain':'lose'} admin privileges.`;
+            Alpine.store('adminModal').confirmLabel = newAdmin ? 'Promote' : 'Remove';
+            Alpine.store('adminModal').confirm = async () => {
+                Alpine.store('adminModal').show = false;
+                try {
+                    await API.adminUpdateUser(u.id, { is_admin: newAdmin });
+                    u.is_admin = newAdmin;
+                    API.toast(newAdmin?'Promoted to admin':'Admin removed','success');
+                } catch(e) { API.toast(e.message,'error'); }
+            };
+            Alpine.store('adminModal').show = true;
+        },
+
+        confirmDeleteUser(u) {
+            Alpine.store('adminModal').icon = '🗑️';
+            Alpine.store('adminModal').title = 'Delete user?';
+            Alpine.store('adminModal').message = `Permanently delete ${u.email} and all their resumes.`;
+            Alpine.store('adminModal').confirmLabel = 'Delete';
+            Alpine.store('adminModal').confirm = async () => {
+                Alpine.store('adminModal').show = false;
+                try {
+                    await API.adminDeleteUser(u.id);
+                    this.users = this.users.filter(x => x.id !== u.id);
+                    this.usersTotal--;
+                    if (this.stats) { this.stats.total_users--; this.stats.active_users--; }
+                    API.toast('User deleted', 'success');
+                } catch(e) { API.toast(e.message,'error'); }
+            };
+            Alpine.store('adminModal').show = true;
+        },
+
+        confirmDeleteResume(r) {
+            Alpine.store('adminModal').icon = '🗑️';
+            Alpine.store('adminModal').title = 'Delete resume?';
+            Alpine.store('adminModal').message = `Permanently delete "${r.title}" by ${r.owner_email}.`;
+            Alpine.store('adminModal').confirmLabel = 'Delete';
+            Alpine.store('adminModal').confirm = async () => {
+                Alpine.store('adminModal').show = false;
+                try {
+                    await API.adminDeleteResume(r.id);
+                    this.allResumes = this.allResumes.filter(x => x.id !== r.id);
+                    this.resumesTotal--;
+                    if (this.stats) this.stats.total_resumes--;
+                    API.toast('Resume deleted', 'success');
+                } catch(e) { API.toast(e.message,'error'); }
+            };
+            Alpine.store('adminModal').show = true;
+        },
+
+        actionBadgeClass(action) {
+            if (action.includes('register')) return 'register';
+            if (action.includes('login')) return 'login';
+            if (action.includes('resume')) return 'resume';
+            if (action.includes('admin')) return 'admin';
+            if (action.includes('password')) return 'admin';
+            return 'other';
+        },
+
+        // ── Growth chart (pure SVG) ──
+        renderGrowthChart() {
+            const svg = document.getElementById('growthSvg');
+            if (!svg || !this.growthData.length) return;
+            const W = svg.clientWidth || 700, H = 140, PAD = 30;
+            const data = this.growthData;
+            const maxVal = Math.max(...data.map(d=>d.count), 1);
+            const barW = Math.max(4, Math.floor((W - PAD*2) / data.length) - 2);
+            let html = '';
+            data.forEach((d, i) => {
+                const x = PAD + i * ((W - PAD*2) / data.length);
+                const barH = Math.max(4, ((d.count / maxVal) * (H - 30)));
+                const y = H - barH - 10;
+                const color = d.count > 0 ? 'url(#barGrad)' : 'var(--border)';
+                html += `<rect x="${x}" y="${y}" width="${barW}" height="${barH}" rx="3" fill="${color}" opacity="0.9"/>`;
+                if (d.count > 0) {
+                    html += `<text x="${x+barW/2}" y="${y-4}" text-anchor="middle" font-size="9" fill="var(--text-muted)">${d.count}</text>`;
+                }
+            });
+            // X axis labels (show every 5th)
+            data.forEach((d,i) => {
+                if (i % 5 === 0) {
+                    const x = PAD + i * ((W - PAD*2) / data.length) + barW/2;
+                    const label = d.day ? d.day.slice(5) : '';
+                    html += `<text x="${x}" y="${H}" text-anchor="middle" font-size="9" fill="var(--text-muted)">${label}</text>`;
+                }
+            });
+            svg.innerHTML = `
+                <defs>
+                  <linearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="var(--brand-1)"/>
+                    <stop offset="100%" stop-color="var(--brand-2)"/>
+                  </linearGradient>
+                </defs>
+                ${html}`;
+        },
+
+        toggleTheme() { this.theme = API.toggleTheme(); },
+    }));
+});
+</script>
+</body>
+</html>

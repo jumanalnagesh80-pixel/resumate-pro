@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+env/
+.env
+.streamlit/secrets.toml
+_smoke_*.pdf
+*.egg-info/
+.DS_Store
+.idea/
+.vscode/

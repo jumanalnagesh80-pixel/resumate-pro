@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shared Resume — ResuMate AI</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+
+<div x-data="sharePage" x-init="init()" x-cloak class="max-w-3xl mx-auto p-6">
+
+    <header class="flex items-center justify-between mb-6">
+        <a href="/" class="flex items-center gap-2">
+            <div class="w-8 h-8 rounded-lg flex items-center justify-center"
+                 style="background: linear-gradient(135deg, var(--brand-1), var(--brand-3));">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3h-7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>
+            </div>
+            <span class="font-bold" style="color: var(--text);">ResuMate AI</span>
+        </a>
+        <a href="/register" class="btn-brand text-sm">Build your own</a>
+    </header>
+
+    <div x-show="loading" class="card text-center py-12"><span class="spinner"></span></div>
+    <div x-show="error" class="card text-center py-12">
+        <h2 class="text-xl font-bold mb-1" style="color: var(--text);">Resume not available</h2>
+        <p style="color: var(--text-muted);" x-text="error"></p>
+    </div>
+
+    <div x-show="resume" class="preview-frame">
+        <h1 x-text="resume?.data?.personal?.name || 'Resume'"></h1>
+        <div class="meta" x-text="resume?.data?.personal?.title"></div>
+        <div class="meta" x-text="[resume?.data?.personal?.email, resume?.data?.personal?.phone, resume?.data?.personal?.location].filter(Boolean).join(' • ')"></div>
+
+        <template x-if="resume?.data?.summary">
+            <div><h2>Summary</h2><p x-text="resume.data.summary"></p></div>
+        </template>
+
+        <template x-if="resume?.data?.experience?.length">
+            <div>
+                <h2>Experience</h2>
+                <template x-for="(j, i) in resume.data.experience" :key="i">
+                    <div>
+                        <h3 x-text="(j.role || '') + (j.company ? ' · ' + j.company : '')"></h3>
+                        <div class="meta" x-text="[j.start, j.end].filter(Boolean).join(' – ') + (j.location ? ' · ' + j.location : '')"></div>
+                        <ul><template x-for="b in j.bullets"><li x-text="b"></li></template></ul>
+                    </div>
+                </template>
+            </div>
+        </template>
+
+        <template x-if="resume?.data?.education?.length">
+            <div>
+                <h2>Education</h2>
+                <template x-for="(ed, i) in resume.data.education" :key="i">
+                    <div>
+                        <h3 x-text="ed.school"></h3>
+                        <div class="meta" x-text="[ed.degree, ed.field, [ed.start, ed.end].filter(Boolean).join('–')].filter(Boolean).join(' · ')"></div>
+                    </div>
+                </template>
+            </div>
+        </template>
+
+        <template x-if="resume?.data?.skills?.length">
+            <div><h2>Skills</h2><p x-text="resume.data.skills.join(' · ')"></p></div>
+        </template>
+    </div>
+
+    <p class="text-center text-xs mt-6" style="color: var(--text-muted);">
+        This is a read-only public link. <a href="/register" style="color: var(--brand-1);">Create your own resume →</a>
+    </p>
+</div>
+
+<script>
+document.addEventListener('alpine:init', () => {
+    Alpine.data('sharePage', () => ({
+        loading: true, error: '', resume: null,
+        async init() {
+            const m = location.pathname.match(/\/share\/([^/]+)/);
+            if (!m) { this.loading = false; this.error = 'No share token in URL.'; return; }
+            try {
+                const res = await fetch('/api/resumes/share/' + m[1]);
+                if (!res.ok) throw new Error('Not found or no longer public.');
+                this.resume = await res.json();
+            } catch (e) { this.error = e.message; }
+            finally { this.loading = false; }
+        },
+    }));
+});
+</script>
+<link rel="stylesheet" href="/static/css/styles.css">
+</body>
+</html>
